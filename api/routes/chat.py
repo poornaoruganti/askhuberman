@@ -2,6 +2,7 @@ import json
 import logging
 from typing import AsyncGenerator
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi_limiter.depends import RateLimiter
 from fastapi.responses import StreamingResponse
 
 from rag.pipelines.rag_pipeline import RAGPipeline
@@ -54,7 +55,9 @@ async def response_generator(pipeline: RAGPipeline, request: ChatRequest) -> Asy
 @router.post("/chat")
 async def chat_endpoint(
     request: ChatRequest,
-    pipeline: RAGPipeline = Depends(get_pipeline)
+    pipeline: RAGPipeline = Depends(get_pipeline),
+    _minute: None = Depends(RateLimiter(times=10, seconds=60)),       # 10/min
+    _day: None = Depends(RateLimiter(times=100, seconds=86400)),      # 200/day
 ):
     """
     SSE Endpoint for RAG Chat.

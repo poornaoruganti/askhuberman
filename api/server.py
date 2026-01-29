@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import chat, health
 from api.dependencies import PipelineFactory
+import redis.asyncio as redis
+from fastapi_limiter import FastAPILimiter
+from api.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -14,9 +17,19 @@ async def lifespan(app: FastAPI):
     """
     # Startup: Ensure pipeline is ready (optional)
     await PipelineFactory.get_instance()
+    
+    # Initialize Redis connection with hiredis
+    try:
+        r = redis.from_url(settings.REDIS_URL, encoding="utf-8", decode_responses=True)
+        await FastAPILimiter.init(r)
+        print("FastAPILimiter initialized with Redis.")
+    except Exception as e:
+        print(f"Failed to initialize FastAPILimiter: {e}")
+
     yield
     # later add cleanup logic here
     # e.g., await PipelineFactory.get_instance().retriever.close()
+    await r.close()
     print("Shutting down RAG API...")
 
 def create_app() -> FastAPI:
